@@ -4,6 +4,7 @@
 
 - Fixed competing script and style injections when SFC blocks contain `generic`, `module`, `src`, or other non-`lang` attributes.
 - Added explicit `javascript`, `jsx`, `typescript`, and `tsx` aliases for script `lang` values.
+- Fixed TypeScript completion crashes when Vue-only trigger characters such as `{` are entered in templates.
 
 ## 0.1.5
 
