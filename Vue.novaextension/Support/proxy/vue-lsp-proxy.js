@@ -41,6 +41,7 @@ const SERVER_REQUEST_TIMEOUT_MS = 15000;
 const DIAGNOSTICS_CACHE_TTL_MS = 5000;
 const TSSERVER_NO_CONTENT_MESSAGE = "No content available.";
 const TS_COMPLETION_DATA_KEY = "__novaVueTsCompletion";
+const TSSERVER_COMPLETION_TRIGGER_CHARACTERS = new Set([".", "\"", "'", "`", "/", "@", "<", "#", " "]);
 const NOVA_IDENTIFIER_TRIGGER_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_$-";
 const traceLspEnabled = args.traceLsp === "true" || process.env.VUE_LSP_PROXY_TRACE_LSP === "1";
 const vueServerStderr = createRecentTextBuffer(40);
@@ -650,7 +651,7 @@ function enhanceServerCapabilities(capabilities) {
     delete enhanced.completionProvider;
   } else if (typescriptServiceEnabled) {
     const existingCompletion = enhanced.completionProvider;
-    const triggerCharacters = new Set([".", "\"", "'", "`", "/", "@", "<", "#"]);
+    const triggerCharacters = new Set(TSSERVER_COMPLETION_TRIGGER_CHARACTERS);
     for (const character of NOVA_IDENTIFIER_TRIGGER_CHARACTERS) {
       triggerCharacters.add(character);
     }
@@ -806,7 +807,7 @@ async function tsCompletion(file, position, context) {
   if (
     context?.triggerKind === 2
     && typeof context.triggerCharacter === "string"
-    && !isNovaIdentifierTrigger(context.triggerCharacter)
+    && isTsserverCompletionTrigger(context.triggerCharacter)
   ) {
     requestArgs.triggerKind = context.triggerKind;
     requestArgs.triggerCharacter = context.triggerCharacter;
@@ -1087,6 +1088,10 @@ function normalizeCompletionParams(params) {
 
 function isNovaIdentifierTrigger(character) {
   return character.length === 1 && NOVA_IDENTIFIER_TRIGGER_CHARACTERS.includes(character);
+}
+
+function isTsserverCompletionTrigger(character) {
+  return character.length === 1 && TSSERVER_COMPLETION_TRIGGER_CHARACTERS.has(character);
 }
 
 function normalizeVueCompletionForNova(file, position, result) {

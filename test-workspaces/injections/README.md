@@ -33,3 +33,14 @@ Expected checks:
 6. `template-lang-pug.vue`
    - The `<template lang="pug">` block should inject as `pug`.
    - Pug is backed by the bundled `libtree-sitter-pug.dylib` parser and `Queries/pug/highlights.scm`.
+
+7. `script-generic.vue`
+   - The `<script setup lang="ts" generic="...">` block should inject exactly once as `typescript`.
+   - `generic` must not create a competing JavaScript injection.
+   - The Stylus block must stay `stylus` even though it also has `module="styles"`.
+   - `data-language="pug"` on the template must not enable Pug.
+
+8. `non-lang-attributes.vue`
+   - `data-language="ts"` must not be treated as `lang="ts"`; the script should use the JavaScript fallback.
+   - `data-language="pug"` must not enable Pug in the template.
+   - `data-language="stylus"` must not enable Stylus; the style block should use the CSS fallback.

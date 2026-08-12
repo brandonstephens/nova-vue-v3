@@ -82,7 +82,7 @@ async function runTest() {
         uri: vueUri,
         languageId: "vue",
         version: 1,
-        text: "<script setup lang=\"ts\">\nfoo\n</script>\n"
+        text: "<script setup lang=\"ts\">\nfoo\n</script>\n<template>\n  {{ value }}\n</template>\n"
       }
     });
 
@@ -93,6 +93,16 @@ async function runTest() {
     if (completionItems(successfulEmpty).length !== 0) {
       throw new Error(`Successful empty TypeScript completion must not fall back: ${JSON.stringify(successfulEmpty)}`);
     }
+
+    for (const [triggerCharacter, character] of [["{", 3], ["}", 4], [":", 5]]) {
+      const result = await requestTriggeredCompletion(connection, vueUri, character, triggerCharacter);
+      assertCompletion(result, `ts-normalized-${character + 1}`);
+      assertCompletion(result, `vue-trigger-${triggerCharacter}`);
+    }
+
+    const validTrigger = await requestTriggeredCompletion(connection, vueUri, 6, ".");
+    assertCompletion(validTrigger, "ts-forwarded-dot");
+    assertCompletion(validTrigger, "vue-trigger-.");
 
     const signatureHelp = await requestWithTimeout(connection, "textDocument/signatureHelp", {
       textDocument: { uri: vueUri },
@@ -123,6 +133,14 @@ function requestCompletion(connection, uri, character) {
     textDocument: { uri },
     position: { line: 1, character },
     context: { triggerKind: 1 }
+  });
+}
+
+function requestTriggeredCompletion(connection, uri, character, triggerCharacter) {
+  return requestWithTimeout(connection, "textDocument/completion", {
+    textDocument: { uri },
+    position: { line: 4, character },
+    context: { triggerKind: 2, triggerCharacter }
   });
 }
 
@@ -176,7 +194,30 @@ function runFakeTsserver() {
         continue;
       }
       let response;
-      if (request.command === "completionInfo" && request.arguments?.offset === 3) {
+      if (request.command === "completionInfo" && request.arguments?.line === 5) {
+        const requestArgs = request.arguments;
+        const normalizedTrigger = requestArgs.offset >= 4
+          && requestArgs.offset <= 6
+          && requestArgs.triggerKind === 1
+          && !("triggerCharacter" in requestArgs);
+        const forwardedDot = requestArgs.offset === 7
+          && requestArgs.triggerKind === 2
+          && requestArgs.triggerCharacter === ".";
+        if (normalizedTrigger || forwardedDot) {
+          const name = forwardedDot ? "ts-forwarded-dot" : `ts-normalized-${requestArgs.offset}`;
+          response = tsserverResponse(request, true, {
+            isIncomplete: false,
+            entries: [{ name, kind: "const", kindModifiers: "", sortText: "0" }]
+          });
+        } else {
+          response = tsserverResponse(
+            request,
+            false,
+            undefined,
+            `Unexpected completion trigger arguments: ${JSON.stringify(requestArgs)}`
+          );
+        }
+      } else if (request.command === "completionInfo" && request.arguments?.offset === 3) {
         response = tsserverResponse(request, false, undefined, "synthetic tsserver failure");
       } else if (request.command === "completionInfo" && request.arguments?.offset === 4) {
         response = tsserverResponse(request, true, { isIncomplete: false, entries: [] });
@@ -210,6 +251,12 @@ function runFakeVueServer() {
     }
   }));
   connection.onRequest("textDocument/completion", (params) => {
+    if (params?.position?.line === 4) {
+      return {
+        isIncomplete: false,
+        items: [{ label: `vue-trigger-${params?.context?.triggerCharacter}` }]
+      };
+    }
     const labels = {
       1: "vue-no-content-fallback",
       2: "vue-error-fallback",

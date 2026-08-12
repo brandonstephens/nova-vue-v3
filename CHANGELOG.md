@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- Fixed competing script and style injections when SFC blocks contain `generic`, `module`, `src`, or other non-`lang` attributes.
+- Added explicit `javascript`, `jsx`, `typescript`, and `tsx` aliases for script `lang` values.
+
 ## 0.1.5
 
 - Updated Nova environment, settings, color assistant, and language client integration for Nova 14.

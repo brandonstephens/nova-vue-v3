@@ -1,23 +1,39 @@
-; Script tags
+; Script tags with an explicit language
 (
   (script_element
     (start_tag
       (attribute
+        (attribute_name) @_lang_attr
         (quoted_attribute_value
           ["\"" "'"]
-          (attribute_value) @_attrvalue
+          (attribute_value) @_lang_value
           ["\"" "'"]
-        )?
-      )?
+        )
+      )
     )
     (raw_text) @injection.content
   )
-  (#set-by-case-eq! @_attrvalue injection.language
+  (#match? @_lang_attr "(?i)^lang$")
+  (#set-by-case-eq! @_lang_value injection.language
     "js" "javascript"
+    "javascript" "javascript"
+    "jsx" "jsx"
     "ts" "typescript"
+    "typescript" "typescript"
+    "tsx" "tsx"
     "coffee" "coffeescript"
-    "javascript"
   )
+)
+
+; Script tags without a lang attribute use JavaScript. Matching the complete
+; start tag keeps this fallback disjoint from the explicit-language rule.
+(
+  (script_element
+    (start_tag) @_start_tag
+    (raw_text) @injection.content
+  )
+  (#not-match? @_start_tag "(?i)(^|\\s)lang\\s*=")
+  (#set! injection.language "javascript")
 )
 
 ; Pug template tags
@@ -25,35 +41,39 @@
   (template_element
     (start_tag
       (attribute
+        (attribute_name) @_lang_attr
         (quoted_attribute_value
           ["\"" "'"]
-          (attribute_value) @_attrvalue
+          (attribute_value) @_lang_value
           ["\"" "'"]
-        )?
-      )?
+        )
+      )
     )
     (text) @injection.content
   )
-  (#set-by-case-eq! @_attrvalue injection.language
+  (#match? @_lang_attr "(?i)^lang$")
+  (#set-by-case-eq! @_lang_value injection.language
     "pug" "pug"
   )
 )
 
-; Style tags
+; Style tags with an explicit language
 (
   (style_element
     (start_tag
       (attribute
+        (attribute_name) @_lang_attr
         (quoted_attribute_value
           ["\"" "'"]
-          (attribute_value) @_attrvalue
+          (attribute_value) @_lang_value
           ["\"" "'"]
-        )?
-      )?
+        )
+      )
     )
     (raw_text) @injection.content
   )
-  (#set-by-case-eq! @_attrvalue injection.language
+  (#match? @_lang_attr "(?i)^lang$")
+  (#set-by-case-eq! @_lang_value injection.language
     "css" "css"
     "scss" "css"
     "sass" "stylus"
@@ -62,8 +82,17 @@
     "pcss" "css"
     "stylus" "stylus"
     "styl" "stylus"
-    "css"
   )
+)
+
+; Style tags without a lang attribute use CSS.
+(
+  (style_element
+    (start_tag) @_start_tag
+    (raw_text) @injection.content
+  )
+  (#not-match? @_start_tag "(?i)(^|\\s)lang\\s*=")
+  (#set! injection.language "css")
 )
 
 ; Style attributes

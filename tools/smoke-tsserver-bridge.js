@@ -169,7 +169,7 @@ async function main() {
   if (!initializeResult?.capabilities?.completionProvider?.resolveProvider) {
     throw new Error(`Expected completion resolve capability: ${JSON.stringify(initializeResult?.capabilities)}`);
   }
-  for (const triggerCharacter of ["<", "a", "Z", "_", "$", "-"]) {
+  for (const triggerCharacter of ["<", "{", "}", "a", "Z", "_", "$", "-"]) {
     if (!initializeResult.capabilities.completionProvider.triggerCharacters?.includes(triggerCharacter)) {
       throw new Error(`Expected Nova completion trigger ${triggerCharacter}: ${JSON.stringify(initializeResult.capabilities.completionProvider)}`);
     }
@@ -213,6 +213,18 @@ async function main() {
       text: completionContent
     }
   });
+
+  const interpolationTriggerCompletion = await request("textDocument/completion", {
+    textDocument: { uri: fileUri(completionFile) },
+    position: { line: 11, character: 3 },
+    context: {
+      triggerKind: 2,
+      triggerCharacter: "{"
+    }
+  });
+  if (!interpolationTriggerCompletion || !Array.isArray(interpolationTriggerCompletion.items)) {
+    throw new Error(`Expected completion response for Vue interpolation trigger: ${JSON.stringify(interpolationTriggerCompletion)}`);
+  }
 
   const scriptCompletion = await request("textDocument/completion", {
     textDocument: { uri: fileUri(completionFile) },
@@ -507,6 +519,9 @@ async function main() {
   }
   if (!stderrText.includes('[LSP] client -> proxy: {"jsonrpc":"2.0","id":') || !stderrText.includes('"method":"initialize"')) {
     throw new Error("Expected LSP trace logs when VUE_LSP_PROXY_TRACE_LSP=1");
+  }
+  if (stderrText.includes("TypeScript completion failed:") || stderrText.includes('Illegal value: "{"')) {
+    throw new Error(`Vue-only completion trigger leaked into TypeScript: ${stderrText}`);
   }
 
   bridge.kill();
