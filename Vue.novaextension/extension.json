@@ -1,12 +1,12 @@
 {
-  "identifier": "vp.vue",
+  "identifier": "brandonstephens.vue",
   "name": "Vue",
-  "organization": "vp",
+  "organization": "Brandon Stephens",
   "vendor": "vp1100",
   "description": "Vue language support for Nova using @vue/language-server v3.",
   "version": "0.1.6",
-  "bugs": "https://github.com/vp1100/nova-vue-v3/issues",
-  "repository": "https://github.com/vp1100/nova-vue-v3",
+  "bugs": "https://github.com/brandonstephens/nova-vue-v3/issues",
+  "repository": "https://github.com/brandonstephens/nova-vue-v3",
   "homepage": "https://github.com/vp1100/nova-vue-v3",
   "categories": [
     "languages",
