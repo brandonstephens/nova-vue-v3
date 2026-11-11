@@ -25,6 +25,7 @@ class VueLanguageService {
         this.memoryRetryUsed = false;
         this.temporaryMaxOldSpaceSize = null;
         this.expectedStop = false;
+        this.stopping = null;
         this.status = (0, index_2.createInitialStatus)();
     }
     ensureStarted(reason = "vue file opened") {
@@ -36,6 +37,18 @@ class VueLanguageService {
     start(reason = "start") {
         if (this.client || this.status.state === "starting") {
             (0, logger_1.debug)(this.status.config, `language server already started; ignoring ${reason}`);
+            return;
+        }
+        if (this.stopping) {
+            (0, logger_1.debug)(this.status.config, `previous language server still stopping; deferring ${reason}`);
+            const lifecycle = this.lifecycle;
+            void this.stopping.then(() => {
+                if (lifecycle !== this.lifecycle) {
+                    (0, logger_1.debug)(this.status.config, `ignoring stale deferred start (${reason})`);
+                    return;
+                }
+                this.start(reason);
+            });
             return;
         }
         const config = (0, index_1.readConfig)();
@@ -183,9 +196,24 @@ class VueLanguageService {
         }
         this.lifecycle += 1;
         if (this.client) {
+            const client = this.client;
             this.expectedStop = true;
             (0, logger_1.debug)(this.status.config, "stopping language server");
-            this.client.stop();
+            const stopped = new Promise((resolve) => {
+                const timeout = setTimeout(resolve, 5000);
+                const subscription = client.onDidStop(() => {
+                    clearTimeout(timeout);
+                    subscription.dispose();
+                    resolve();
+                });
+            });
+            const tracked = stopped.then(() => {
+                if (this.stopping === tracked) {
+                    this.stopping = null;
+                }
+            });
+            this.stopping = tracked;
+            client.stop();
             this.client = null;
         }
         if (this.tsserverBridge) {

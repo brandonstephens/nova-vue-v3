@@ -27,6 +27,7 @@ export class VueLanguageService {
   private memoryRetryUsed = false;
   private temporaryMaxOldSpaceSize: number | null = null;
   private expectedStop = false;
+  private stopping: Promise<void> | null = null;
   public status: ServerStatus = createInitialStatus();
 
   ensureStarted(reason = "vue file opened"): void {
@@ -39,6 +40,18 @@ export class VueLanguageService {
   start(reason = "start"): void {
     if (this.client || this.status.state === "starting") {
       debug(this.status.config, `language server already started; ignoring ${reason}`);
+      return;
+    }
+    if (this.stopping) {
+      debug(this.status.config, `previous language server still stopping; deferring ${reason}`);
+      const lifecycle = this.lifecycle;
+      void this.stopping.then(() => {
+        if (lifecycle !== this.lifecycle) {
+          debug(this.status.config, `ignoring stale deferred start (${reason})`);
+          return;
+        }
+        this.start(reason);
+      });
       return;
     }
     const config = readConfig();
@@ -188,9 +201,24 @@ export class VueLanguageService {
     }
     this.lifecycle += 1;
     if (this.client) {
+      const client = this.client;
       this.expectedStop = true;
       debug(this.status.config, "stopping language server");
-      this.client.stop();
+      const stopped = new Promise<void>((resolve) => {
+        const timeout = setTimeout(resolve, 5000);
+        const subscription = client.onDidStop(() => {
+          clearTimeout(timeout);
+          subscription.dispose();
+          resolve();
+        });
+      });
+      const tracked: Promise<void> = stopped.then(() => {
+        if (this.stopping === tracked) {
+          this.stopping = null;
+        }
+      });
+      this.stopping = tracked;
+      client.stop();
       this.client = null;
     }
     if (this.tsserverBridge) {
